@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fun with Filters and Frequencies — Project 2</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="CS180 Project 2: Fun with Filters & Frequencies — filters, finite differences, DoG, unsharp mask, hybrid images, Gaussian/Laplacian stacks, multiresolution blending." />
+</head>
+<body>
+  <!-- ===== Sticky Header / Nav ===== -->
+  <header class="site-header">
+    <div class="brand">
+      <h1>Fun with Filters & Frequencies</h1>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ===== Abstract ===== -->
+    <section id="abstract" class="block">
+      <h2>Abstract</h2>
+      <p>
+        In this project, I implemented various image processing techniques including convolution from scratch, finite difference operators, derivative of Gaussian filters, unsharp masking, hybrid images, Gaussian and Laplacian stacks, and multiresolution blending. The results demonstrate the effects of spatial and frequency domain manipulations on images, highlighting concepts such as edge detection, noise suppression, and seamless blending.
+      </p>
+    </section>
+
+    <!-- ===== Part 1 ===== -->
+    <section id="part1" class="block">
+      <h2>Part 1 — Fun with Filters</h2>
+
+      <!-- 1.1 Convolutions from Scratch -->
+      <article id="p11" class="subblock">
+        <h3>1.1 Convolutions from Scratch</h3>
+        <p>
+          Implemented convolution with four loops → two loops (row/col split), with zero padding.
+          Compared against <code>scipy.signal.convolve2d</code>, the effect is exactly the same, but the runtime is slower.
+          Below are results on a 9×9 box filter and finite difference operators on a grayscale portrait.
+        </p>
+
+        <!-- Drop results here -->
+        <div class="grid">
+          <figure>
+            <img src="images/selfie.jpg" alt="Original grayscale portrait" />
+            <figcaption>Original</figcaption>
+          </figure>
+          <figure>
+            <img src="images/9*9box.png" alt="Box filter result" />
+            <figcaption>9×9 Box Filter</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p11_dx.jpg" alt="Dx response" />
+            <figcaption>Finite Difference D<sub>x</sub></figcaption>
+          </figure>
+          <figure>
+            <img src="images/p11_dy.jpg" alt="Dy response" />
+            <figcaption>Finite Difference D<sub>y</sub></figcaption>
+          </figure>
+        </div>
+
+        <div class="note">
+          <div class="summary">Notes: implementation & comparison</div>
+          <ul>
+            <li>Padding: zero-fill to keep same size for visualization.</li>
+            <li>Implementation Code:</li>
+          </ul>
+          <pre><code>def conv_2d(img, kernel):
+    img = img.astype(float)
+    kernel = kernel.astype(float)
+    H, W = img.shape
+    KH, KW = kernel.shape
+    dH, dW = KH // 2, KW // 2
+
+    padding = np.zeros((H + 2 * dH, W + 2 * dW), dtype=float)
+    padding[dH:H + dH, dW:W + dW] = img
+
+    conv = np.flip(kernel)
+    result = np.zeros_like(img)
+
+    for i in range(H):
+        for j in range(W):
+            value = 0
+            for u in range(KH):
+                for v in range(KW):
+                    value += padding[i + u, j + v] * conv[u, v]
+            result[i, j] = value
+    return result</code></pre>
+        </div>
+      </article>
+
+      <!-- 1.2 Finite Difference Operator -->
+      <article id="p12" class="subblock">
+        <h3>1.2 Finite Difference Operator</h3>
+        <p>
+          Partial derivatives on the Cameraman image with D<sub>x</sub>, D<sub>y</sub>, gradient magnitude,
+          and a binarized edge map (threshold chosen qualitatively to balance noise vs. recall).
+        </p>
+
+        <div class="grid">
+          <figure>
+            <img src="images/cameraman.jpg" alt="Cameraman original" />
+            <figcaption>Cameraman (original)</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p12_dx.jpg" alt="Dx of Cameraman" />
+            <figcaption>D<sub>x</sub></figcaption>
+          </figure>
+          <figure>
+            <img src="images/p12_dy.jpg" alt="Dy of Cameraman" />
+            <figcaption>D<sub>y</sub></figcaption>
+          </figure>
+          <figure>
+            <img src="images/p12_mag.jpg" alt="Gradient magnitude" />
+            <figcaption>Gradient Magnitude</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p12_edges.jpg" alt="Binarized edges" />
+            <figcaption>Binarized Edge Map</figcaption>
+          </figure>
+        </div>
+
+        <div class="note">
+          <div class="summary">Notes: threshold choice</div>
+          <p>The final threshold is determined as it captures most of the edges, and the noises are significant but easy for eyes to recognize.</p>
+        </div>
+      </article>
+
+      <!-- 1.3 Derivative of Gaussian (DoG) -->
+      <article id="p13" class="subblock">
+        <h3>1.3 Derivative of Gaussian (DoG)</h3>
+        <p>
+          Smoothed Cameraman with Gaussian then applied finite differences; also built DoG filters
+          by convolving Gaussian with D<sub>x</sub> / D<sub>y</sub>. Results match the two-stage method
+          while reducing noise.
+        </p>
+
+        <div class="grid">
+          <figure>
+            <img src="images/p13_gaussian.jpg" alt="Gaussian-smoothed Cameraman" />
+            <figcaption>Gaussian Smoothed</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p13_dogx.jpg" alt="DoG x filter response" />
+            <figcaption>DoG<sub>x</sub></figcaption>
+          </figure>
+          <figure>
+            <img src="images/p13_dogy.jpg" alt="DoG y filter response" />
+            <figcaption>DoG<sub>y</sub></figcaption>
+          </figure>
+          <figure>
+            <img src="images/p13_dog_mag.jpg" alt="DoG magnitude" />
+            <figcaption>DoG Magnitude</figcaption>
+          </figure>
+        </div>
+
+        <div class="note">
+          <div class="summary">Notes: Observation</div>
+          <p>The results of the DoG and Gaussian are almost the same. Both of them reduce noise while preserving edge information effectively.</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- ===== Part 2 ===== -->
+    <section id="part2" class="block">
+      <h2>Part 2 — Fun with Frequencies</h2>
+
+      <!-- 2.1 Unsharp Mask -->
+      <article id="p21" class="subblock">
+        <h3>2.1 Image “Sharpening” (Unsharp Mask)</h3>
+        <p>
+          Derived unsharp mask: <code>sharp = original + α·(original − Gaussian(original))</code>.
+          Shown on the Taj Mahal and another image; also blur→sharpen on a sharp image.
+        </p>
+
+        <div class="grid">
+          <figure>
+            <img src="images/taj.jpg" alt="Taj original" />
+            <figcaption>Taj — Original</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_taj_blur.jpg" alt="Taj blurred" />
+            <figcaption>Blurred</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_taj_high.jpg" alt="Taj high frequency" />
+            <figcaption>High Frequencies</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_taj_sharp_1.jpg" alt="Taj sharpened (α = 1)" />
+            <figcaption>Sharpened (α = 1)</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_taj_sharp_3.jpg" alt="Taj sharpened (α = 3)" />
+            <figcaption>Sharpened (α = 3)</figcaption>
+          </figure>
+
+          <figure>
+            <img src="images/andaz.jpg" alt="Andaz Bali original" />
+            <figcaption>Andaz Bali — Original</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_andaz_blur.jpg" alt="Andaz blurred" />
+            <figcaption>Blurred</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_andaz_high.jpg" alt="Andaz high frequency" />
+            <figcaption>High Frequencies</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_andaz_sharp_1.jpg" alt="Andaz sharpened (α = 1)" />
+            <figcaption>Sharpened (α = 1)</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p21_andaz_sharp_3.jpg" alt="Andaz sharpened (α = 3)" />
+            <figcaption>Sharpened (α = 3)</figcaption>
+          </figure>
+        </div>
+
+        <div class="note">
+          <div class="summary">Notes: effect of α</div>
+          <p>
+            <li> Blured images are created by convolving original images with a Gaussian filter, where the sigma is determined by the size of the image and my personal preference. </li>
+            <li> The high frequency images are obtained by subtracting the blurred images from the original images. </li>
+            <li> As α increases, the sharpening effect becomes more pronounced, enhancing edges and fine details. </li>
+          </p>
+        </div>
+      </article>
+
+      <!-- 2.2 Hybrid Images -->
+      <article id="p22" class="subblock">
+        <h3>2.2 Hybrid Images</h3>
+        <p>
+          Built hybrids by combining low-frequency of one image and high-frequency of another.
+          For one example, I include Fourier log-magnitude visualizations of inputs, filtered images, and result.
+        </p>
+
+        <!-- Full pipeline for one hybrid -->
+        <h4>Example A — Full Pipeline</h4>
+        <div class="grid">
+          <figure>
+            <img src="images/p22A_low_src.jpg" alt="Low-frequency source" />
+            <figcaption>Low-freq Source</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_high_src.jpg" alt="High-frequency source" />
+            <figcaption>High-freq Source</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_low_aligned.jpg" alt="Low-frequency source" />
+            <figcaption>Low-freq aligned</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_high_aligned.jpg" alt="High-frequency source" />
+            <figcaption>High-freq aligned</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_low_filtered.jpg" alt="Low-pass filtered" />
+            <figcaption>Low-pass</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_high_filtered.jpg" alt="High-pass filtered" />
+            <figcaption>High-pass</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_fft_before.jpg" alt="FFT before" />
+            <figcaption>FFT images before filtering (log-mag)</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_fft_after.jpg" alt="FFT after" />
+            <figcaption>FFT images after filtering (log-mag)</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22A_hybrid.jpg" alt="Hybrid result" />
+            <figcaption>Hybrid Result (cutoff = …)</figcaption>
+          </figure>
+        </div>
+
+        <div class="note">
+          <div class="summary">Notes: The pipeline</div>
+          <p>
+            <li> Built hybrids by combining low-frequency of one image and high-frequency of another. </li>
+            <li> Aligned images to ensure the eyes of the 2 images overlap. </li>
+            <li> The cutoff frequency is chosen based on visual inspection to balance the contributions of both images. For the low frequncy image, high sigma can filter out more low frequencies, while low sigma preserves more details. 
+                For the high frequency image, since we subtract the blurred image, high sigma makes the edges sharper.</li>
+            <li> FFT visualizations use log-magnitude scaling for better visibility of frequency components. For the image with low frequencies, the log-magnitude is mainly around the center. For the high frequency image, the log-magnitude is more spread out.</li>
+          </p>
+        </div>
+
+        <!-- Two more hybrids: only inputs + result -->
+        <h4>Examples B, C — Results</h4>
+        <div class="grid">
+          <figure>
+            <img src="images/p22B_src1.jpg" alt="B src1" />
+            <figcaption>B — Source 1 - Hello Kitty</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22B_src2.jpg" alt="B src2" />
+            <figcaption>B — Source 2 - Selfie</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22B_result.jpg" alt="B hybrid" />
+            <figcaption>B — Hybrid</figcaption>
+          </figure>
+
+          <figure>
+            <img src="images/p22C_src1.jpg" alt="C src1" />
+            <figcaption>C — Source 1 - Einstein</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22C_src2.jpg" alt="C src2" />
+            <figcaption>C — Source 2 - Oski</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p22C_result.jpg" alt="C hybrid" />
+            <figcaption>C — Hybrid</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- 2.3 Gaussian & Laplacian Stacks -->
+      <article id="p23" class="subblock">
+        <h3>2.3 Gaussian & Laplacian Stacks</h3>
+        <p>
+          Constructed same-size Gaussian and Laplacian stacks (no downsampling) for Oraple. Visualized levels per stack.
+        </p>
+
+        <figure class="span2" style="max-width: 800px; margin: 20px auto;">
+          <img src="images/p23_gauss_l0.jpg" alt="Gaussian and Laplacian stacks visualization" style="aspect-ratio: 1/1.15;" />
+          <figcaption>Gaussian and Laplacian Stacks — All Levels</figcaption>
+        </figure>
+      </article>
+
+      <!-- 2.4 Multiresolution Blending -->
+      <article id="p24" class="subblock">
+        <h3>2.4 Multiresolution Blending (Oraple)</h3>
+        <p>
+          Blended pairs using Gaussian/Laplacian stacks with a blurred mask (vertical/horizontal seam),
+          then tried irregular masks. Below: masked inputs, stack visualizations, and final blends.
+        </p>
+
+        <h4>Vertical/Horizontal Seam</h4>
+        <div class="grid">
+          <figure>
+            <img src="images/p24_cat.jpg" alt="Cat" />
+            <figcaption>Cat</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p24_dog.jpg" alt="Dog" />
+            <figcaption>Dog</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p24_catdog.jpg" alt="CatDog blend" />
+            <figcaption>CatDog (final blend)</figcaption>
+          </figure>
+        </div>
+
+        <h4>Irregular Masks</h4>
+        <div class="grid">
+          <figure>
+            <img src="images/p24_custom1_srcA.jpg" alt="Custom 1 A" />
+            <figcaption>Custom 1 — A</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p24_custom1_srcB.jpg" alt="Custom 1 B" />
+            <figcaption>Custom 1 — B</figcaption>
+          </figure>
+          <figure>
+            <img src="images/p24_custom1_result.jpg" alt="Custom 1 result" />
+            <figcaption>Custom 1 — Result</figcaption>
+          </figure>
+        </div>
+      </article>
+    </section>
+
+  </main>
+</body>
+</html>
